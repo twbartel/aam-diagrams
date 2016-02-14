@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.3/d3.min.js'></script>
+    <script src='https://cdnjs.cloudflare.com/ajax/libs/nvd3/1.1.15-beta/nv.d3.min.js'></script>
+    <link href='https://cdnjs.cloudflare.com/ajax/libs/nvd3/1.1.15-beta/nv.d3.min.css' rel='stylesheet'>
+
+    <style>
+        .percentile {
+            stroke-width: 1px;
+            stroke-dasharray: 10,10;
+        }
+        .percentile50 {
+            color: #ddcc00;
+            border-color: #ddcc00;
+            stroke: #ddcc00;
+        }
+        .percentile70 {
+            color: #dda400;
+            border-color: #dda400;
+            stroke: #dda400;
+        }
+        .percentile85 {
+            color: #dd5500;
+            border-color: #dd5500;
+            stroke: #dd5500;
+        }
+        .percentile95 {
+            color: #dd0014;
+            border-color: #dd0014;
+            stroke: #dd0014;
+        }
+        .percentile-label {
+            font-size: 11px;
+            font-weight: normal;
+            background-color: #fff;
+            border: 1px solid #000000;
+        }
+    </style>
+</head>
+<body>
+
+<div id='chart' style='height:500px'>
+  <svg></svg>
+</div>
+
+<script>
+    // For percentile lines, see http://charts.animateddata.co.uk/whatmakesushappy/
+
+    var MAX_FINISH_PER_DAY = 5;
+    var timestamps = [1438380000000, 1438466400000, 1438552800000, 1438639200000, 1438725600000, 1438812000000, 1438898400000, 1438984800000, 1439071200000, 1439157600000, 1439244000000, 1439330400000, 1439416800000, 1439503200000, 1439589600000, 1439676000000, 1439762400000, 1439848800000, 1439935200000, 1440021600000, 1440108000000, 1440194400000, 1440280800000, 1440367200000, 1440453600000, 1440540000000, 1440626400000, 1440712800000, 1440799200000, 1440885600000, 1440972000000, 1441058400000, 1441144800000, 1441231200000, 1441317600000, 1441404000000, 1441490400000, 1441576800000, 1441663200000, 1441749600000, 1441836000000, 1441922400000, 1442008800000, 1442095200000, 1442181600000, 1442268000000, 1442354400000, 1442440800000, 1442527200000, 1442613600000, 1442700000000, 1442786400000, 1442872800000, 1442959200000, 1443045600000, 1443132000000, 1443218400000, 1443304800000, 1443391200000, 1443477600000, 1443564000000, 1443650400000, 1443736800000, 1443823200000, 1443909600000, 1443996000000, 1444082400000, 1444168800000, 1444255200000, 1444341600000, 1444428000000, 1444514400000, 1444600800000, 1444687200000, 1444773600000, 1444860000000, 1444946400000, 1445032800000, 1445119200000, 1445205600000, 1445292000000, 1445378400000, 1445464800000, 1445551200000, 1445637600000, 1445724000000, 1445814000000, 1445900400000, 1445986800000, 1446073200000, 1446159600000, 1446246000000, 1446332400000, 1446418800000, 1446505200000, 1446591600000, 1446678000000, 1446764400000, 1446850800000, 1446937200000];
+    var chart = nv.models.scatterChart()
+              .showDistX(true)
+              .showDistY(true)
+              .color(d3.scale.category10().range());
+
+    chart.xAxis.tickFormat(function(d) { return d3.time.format('%x')(new Date(d)) }).axisLabel('Date');
+    chart.yAxis.tickFormat(d3.format(',.0f')).axisLabel('Cycle Time');
+
+    function getCycleTime() {
+        return poissonRandomNumber(14);
+    }
+    function poissonRandomNumber(lambda) {
+        var L = Math.exp(-lambda),
+            k = 0,
+            p = 1;
+
+        do {
+            k = k + 1;
+            p = p * Math.random();
+        } while (p > L);
+
+        return k - 1;
+    }
+
+    function createCycleTimeDay(timestamp) {
+        var numValues = randomIntFromInterval(0, MAX_FINISH_PER_DAY),
+                values = {},
+                cycleTime;
+
+        for (var i = 0; i < numValues; i+= 1) {
+            cycleTime = getCycleTime();
+            if (typeof values[cycleTime] === 'undefined') {
+                values[cycleTime] = 0;
+            }
+            values[cycleTime] += 1;
+        }
+
+        function convertValues() {
+            var result = [];
+            for (var cycleTime in values) {
+                if (values.hasOwnProperty(cycleTime)) {
+                    result.push({
+                        x: timestamp,
+                        y: parseInt(cycleTime),
+                        size: values[cycleTime]
+                    });
+                }
+            }
+            return result;
+        }
+
+        return {
+            getValues: convertValues,
+            numValues: function() {
+                return values.length;
+            }
+        };
+    }
+
+    var values = [];
+    timestamps.forEach(function(timestamp) {
+        var day = createCycleTimeDay(timestamp),
+                dayValues = day.getValues();
+        for (var i = 0, len = dayValues.length; i < len; i += 1) {
+            values.push(dayValues[i]);
+        }
+    });
+
+    function getPercentile(sortedValues, percentage) {
+        var index = Math.ceil((percentage / 100.0) * sortedValues.length) - 1;
+        return sortedValues[index];
+    }
+
+    function randomIntFromInterval(min,max)  {
+        return Math.floor(Math.random() * (max - min + 1) + min);
+    }
+
+    var data = [{ "key": "Cycle times", "values": values }];
+
+    function loadGraph() {
+        d3.select('#chart svg')
+                .datum(data)
+                .transition().duration(500)
+                .call(chart);
+        nv.utils.windowResize(chart.update);
+        percentiles(chart);
+        return chart;
+    }
+
+    function percentiles(chart) {
+        var cycleTimeValues = values.map(function(obj) {
+            return obj.y;
+        }).sort(sortNumbers);
+        appendPercentileLine(chart, 50, cycleTimeValues);
+        appendPercentileLine(chart, 70, cycleTimeValues);
+        appendPercentileLine(chart, 85, cycleTimeValues);
+        appendPercentileLine(chart, 95, cycleTimeValues);
+    }
+
+    function sortNumbers(a, b) {
+        if (a > b) {
+            return 1;
+        } else if (a < b) {
+            return -1;
+        }
+        return 0;
+    }
+
+    function appendPercentileLine(chart, percentage, values) {
+        var xDomain = chart.xAxis.domain.call(),
+                cycleTime = getPercentile(values, percentage),
+                element = d3.select('#chart svg g');
+
+        element.append('line')
+                .attr('class', 'percentile percentile' + percentage)
+                .attr({
+                    x1: chart.xAxis.scale()(xDomain[0]),
+                    y1: chart.yAxis.scale()(cycleTime),
+                    x2: chart.xAxis.scale()(xDomain[1]),
+                    y2: chart.yAxis.scale()(cycleTime)
+                });
+
+        element.append('text')
+                .attr('x', chart.xAxis.scale()(xDomain[0]) + 40)
+                .attr('y', chart.yAxis.scale()(cycleTime) - 5)
+                .attr('text-anchor', 'middle')
+                .attr('class', 'percentile-label percentile' + percentage)
+                .text(percentage + '% - ' + cycleTime + ' days');
+    }
+
+    nv.addGraph(loadGraph);
+
+</script>
+
+</body>
+</html>

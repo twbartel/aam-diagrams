@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href='https://cdnjs.cloudflare.com/ajax/libs/nvd3/1.1.15-beta/nv.d3.min.css' rel='stylesheet'>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.2/d3.min.js" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/nvd3/1.8.1/nv.d3.min.js"></script>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.2.1/lodash.js"></script>
+
+
+    <style>
+        text {
+            font: 12px sans-serif;
+        }
+        svg {
+            display: block;
+        }
+        html, body, svg {
+            margin: 0px;
+            padding: 0px;
+            height: 100%;
+            width: 100%;
+        }
+
+        .nv-controlsWrap {
+            display: none;
+        }
+
+        .nvd3-svg {
+            margin-right: 2em;
+        }
+    </style>
+</head>
+<body class='with-3d-shadow with-transitions'>
+
+    <script>
+        var expandLegend = function() {
+            var exp = chart.legend.expanded();
+            chart.legend.expanded(!exp);
+            chart.update();
+        }
+    </script>
+<svg id="chart1"></svg>
+
+<script>
+
+    var timestamps = [1438380000000, 1438466400000, 1438552800000, 1438639200000, 1438725600000, 1438812000000, 1438898400000, 1438984800000, 1439071200000, 1439157600000, 1439244000000, 1439330400000, 1439416800000, 1439503200000, 1439589600000, 1439676000000, 1439762400000, 1439848800000, 1439935200000, 1440021600000, 1440108000000, 1440194400000, 1440280800000, 1440367200000, 1440453600000, 1440540000000, 1440626400000, 1440712800000, 1440799200000, 1440885600000, 1440972000000, 1441058400000, 1441144800000, 1441231200000, 1441317600000, 1441404000000, 1441490400000, 1441576800000, 1441663200000, 1441749600000, 1441836000000, 1441922400000, 1442008800000, 1442095200000, 1442181600000, 1442268000000, 1442354400000, 1442440800000, 1442527200000, 1442613600000, 1442700000000, 1442786400000, 1442872800000, 1442959200000, 1443045600000, 1443132000000, 1443218400000, 1443304800000, 1443391200000, 1443477600000, 1443564000000, 1443650400000, 1443736800000, 1443823200000, 1443909600000, 1443996000000, 1444082400000, 1444168800000, 1444255200000, 1444341600000, 1444428000000, 1444514400000, 1444600800000, 1444687200000, 1444773600000, 1444860000000, 1444946400000, 1445032800000, 1445119200000, 1445205600000, 1445292000000, 1445378400000, 1445464800000, 1445551200000, 1445637600000, 1445724000000, 1445814000000, 1445900400000, 1445986800000, 1446073200000, 1446159600000, 1446246000000, 1446332400000, 1446418800000, 1446505200000, 1446591600000, 1446678000000, 1446764400000, 1446850800000, 1446937200000];
+    var allValues = [ [], [], [], [], [], []],
+            capacitiesPerDay = [3, 4, 3, 5, 4],
+            receiving,
+            previousValue,
+            potential,
+            passingOn;
+
+
+    for (var i = 0, len = timestamps.length; i < len; i += 1) {
+        receiving = randomIntFromInterval(0, 5);
+        for (var k = 0; k < allValues.length - 1; k += 1) {
+            previousValue = (i === 0) ? 0 : allValues[k][i - 1];
+            potential = previousValue + receiving;
+            pushing = Math.max(0, randomIntFromInterval(0, potential / 3));
+            // pushing = Math.min(pushing, capacitiesPerDay[k]);
+            allValues[k].push(potential - pushing);
+            receiving = pushing;
+        }
+        // "Done" state has to keep summing up
+        previousValue = (i === 0) ? 0 : allValues[allValues.length - 1][i - 1];
+        allValues[allValues.length - 1].push(previousValue + receiving);
+    }
+
+    function createZipFunction(index) {
+        return function(timestamp, i) {
+            return [timestamp, allValues[index][i]];
+        };
+    }
+
+    function randomIntFromInterval(min,max)  {
+        return Math.floor(Math.random() * (max - min + 1) + min);
+    }
+
+    var histcatexplong = [
+        {
+            "key" : "Done" ,
+            "values" : _.map(timestamps, createZipFunction(5))
+        } ,
+        {
+            "key" : "Testing" ,
+            "values" : _.map(timestamps, createZipFunction(4))
+        } ,
+        {
+            "key" : "Development Done" ,
+            "values" : _.map(timestamps, createZipFunction(3))
+        } ,
+        {
+            "key" : "Development Active" ,
+            "values" : _.map(timestamps, createZipFunction(2))
+        } ,
+        {
+            "key" : "Analysis Done" ,
+            "values" : _.map(timestamps, createZipFunction(1))
+        } ,
+        {
+            "key" : "Analysis Active" ,
+            "values" : _.map(timestamps, createZipFunction(0))
+        }
+    ];
+
+    var colors = d3.scale.category20();
+
+    var chart;
+    nv.addGraph(function() {
+        chart = nv.models.stackedAreaChart()
+            // .useInteractiveGuideline(true)
+            .x(function(d) { return d[0] })
+            .y(function(d) { return d[1] })
+            .duration(300);
+
+        chart.xAxis.tickFormat(function(d) { return d3.time.format('%x')(new Date(d)) });
+        chart.yAxis.tickFormat(d3.format('d'));
+
+        // chart.legend.vers('furious');
+
+        d3.select('#chart1')
+            .datum(histcatexplong)
+            .transition().duration(500)
+            .call(chart)
+            .each('start', function() {
+                setTimeout(function() {
+                    d3.selectAll('#chart1 *').each(function() {
+                        if(this.__transition__)
+                            this.__transition__.duration = 1;
+                    })
+                }, 0)
+            });
+
+        nv.utils.windowResize(chart.update);
+        return chart;
+    });
+
+    d3.select(".nv-legendWrap").attr("style", "display:hidden");
+
+
+</script>
+</body>
+</html>
